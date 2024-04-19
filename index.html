@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Multiplayer Pong</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>Multiplayer Pong</h1>
+    <div>
+        <label for="username">Username:</label>
+        <input type="text" id="username" required>
+        <button onclick="joinGame()">Join Game</button>
+    </div>
+    <div>
+        <h2>Team 1 Players:</h2>
+        <ul id="team1"></ul>
+    </div>
+    <div>
+        <h2>Team 2 Players:</h2>
+        <ul id="team2"></ul>
+    </div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Change the WebSocket connection to dynamically use the current host
+        const ws_scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+        const ws_port = window.location.port ? (':' + window.location.port) : '';
+        const websocket = new WebSocket(`${ws_scheme}://${window.location.hostname}${ws_port}/ws`);
+
+
+        let playerId = null;
+
+        websocket.onmessage = function (event) {
+            const message = JSON.parse(event.data);
+
+            if (message.type === 'player_id') {
+                playerId = message.player_id;
+            } else if (message.type === 'game_state') {
+                updateGame(message);
+            }
+        };
+
+        function joinGame() {
+            const username = document.getElementById('username').value;
+            if (username.trim() === '') {
+                alert('Please enter a username.');
+                return;
+            }
+            websocket.send(JSON.stringify({ type: 'join', username: username }));
+        }
+
+        function updateGame(gameState) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw paddles
+            for (const [playerId, playerPos] of Object.entries(gameState.player_positions)) {
+                const paddleX = playerId % 2 === 1 ? 0 : canvas.width - 10;
+                ctx.fillRect(paddleX, playerPos, 10, 100);
+            }
+
+            // Draw ball
+            const [ballX, ballY] = gameState.ball_position;
+            ctx.fillRect(ballX, ballY, 10, 10);
+
+            // Update player lists
+            const team1List = document.getElementById('team1');
+            const team2List = document.getElementById('team2');
+            team1List.innerHTML = '';
+            team2List.innerHTML = '';
+
+            for (const [playerId, playerPos] of Object.entries(gameState.player_positions)) {
+                const listItem = document.createElement('li');
+                listItem.textContent = `Player ${playerId}`;
+
+                if (playerId % 2 === 1) {
+                    team1List.appendChild(listItem);
+                } else {
+                    team2List.appendChild(listItem);
+                }
+            }
+        }
+
+        canvas.addEventListener('mousemove', function (event) {
+            if (playerId === null) {
+                return;
+            }
+            const rect = canvas.getBoundingClientRect();
+            const position = event.clientY - rect.top;
+            websocket.send(JSON.stringify({ type: 'paddle_move', player_id: playerId, position: position }));
+        });
+    </script>
+</body>
+
+</html>
