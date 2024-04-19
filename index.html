@@ -31,10 +31,8 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        // Change the WebSocket connection to dynamically use the current host
-        const ws_scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
-        const ws_port = window.location.port ? (':' + window.location.port) : '';
-        const websocket = new WebSocket(`${ws_scheme}://${window.location.hostname}${ws_port}/ws`);
+        
+        const websocket = new WebSocket(`pong.xndr.ch/ws`);
 
 
         let playerId = null;
