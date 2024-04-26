@@ -2,36 +2,44 @@
 <html>
 
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Multiplayer Pong</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.11/dist/tailwind.min.css" rel="stylesheet">
     <style>
         canvas {
-            border: 1px solid black;
+            border: 1px solid black; /* You may want to keep this for clarity of the game area */
         }
     </style>
 </head>
 
-<body>
-    <h1>Multiplayer Pong</h1>
-    <div>
-        <label for="username">Username:</label>
-        <input type="text" id="username" required>
-        <button onclick="joinGame()">Join Game</button>
+<body class="bg-gray-700 text-white p-5">
+    <h1 class="text-3xl font-bold text-center mb-6">Multiplayer Pong</h1>
+    <div class="flex justify-center space-x-4 mb-4">
+        <label for="username" class="sr-only">Username:</label>
+        <input type="text" id="username" required class="p-2 rounded text-black focus:outline-none focus:ring-2 focus:ring-purple-500" placeholder="Enter Username">
+        <button onclick="joinGame()" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Join Game</button>
+        <button id="restartButton" onclick="restartGame()" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Restart Game</button>
     </div>
-    <div>
-        <h2>Team 1 Players:</h2>
-        <ul id="team1"></ul>
+    <div class="flex justify-around mb-4">
+        <div>
+            <h2 class="font-semibold">Team 1 Players:</h2>
+            <ul id="team1" class="list-disc bg-white text-black p-3 rounded"></ul>
+        </div>
+        <div>
+            <h2 class="font-semibold">Team 2 Players:</h2>
+            <ul id="team2" class="list-disc bg-white text-black p-3 rounded"></ul>
+        </div>
     </div>
-    <div>
-        <h2>Team 2 Players:</h2>
-        <ul id="team2"></ul>
+    <div class="flex justify-center">
+        <canvas id="gameCanvas" width="800" height="600" class="border-2 border-white"></canvas>
     </div>
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
-        
+
         const websocket = new WebSocket(`ws://localhost:8000/ws`);
 
 
@@ -46,6 +54,11 @@
                 updateGame(message);
             }
         };
+
+        function restartGame() {
+            websocket.send(JSON.stringify({ type: 'restart' }));
+        }
+
 
         function joinGame() {
             const username = document.getElementById('username').value;

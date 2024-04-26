@@ -52,6 +52,21 @@ async def websocket_endpoint(websocket: WebSocket):
             elif message["type"] == "paddle_move":
                 player_id = message["player_id"]
                 player_positions[player_id] = message["position"]
+            elif message["type"] == "restart":
+                # Restart game logic
+                global ball_x, ball_y, ball_dx, ball_dy
+                ball_x = GAME_WIDTH // 2
+                ball_y = GAME_HEIGHT // 2
+                ball_dx = BALL_SPEED
+                ball_dy = BALL_SPEED
+                player_positions.clear()
+                player_usernames.clear()
+                
+                reset_message = json.dumps({"type": "reset"})
+                for connection in connections:
+                    await connection.send_text(reset_message)
+                
+                await broadcast_game_state()  
 
     except:
         connections.remove(websocket)
