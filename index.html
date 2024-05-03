@@ -31,8 +31,24 @@
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
 
+        // Get current page URL
+        const url = window.location.href;
+        console.log(url);
+
+        // Remove http:// or https://
+        const urlWithoutProtocol = url.replace(/^https?:\/\//, '');
+        console.log(urlWithoutProtocol);
+
+        // Determine WebSocket protocol (ws:// or wss://)
+        const websocketProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+
+        // Construct WebSocket URL
+        const websocketURL = `${websocketProtocol}${urlWithoutProtocol}ws`;
+        console.log(websocketURL);
+
+        const websocket = new WebSocket(websocketURL);
+
         
-        const websocket = new WebSocket(`pong.xndr.ch/ws`);
 
 
         let playerId = null;
@@ -95,6 +111,28 @@
             const position = event.clientY - rect.top;
             websocket.send(JSON.stringify({ type: 'paddle_move', player_id: playerId, position: position }));
         });
+
+        // Define variables to store the current position of the paddle
+        let paddlePosition = 0;
+
+        // Add an event listener to capture keyboard input
+        document.addEventListener('keydown', function(event) {
+            // Check which key was pressed
+            if (event.key === 'ArrowUp') {
+                // Move paddle up (subtract from position)
+                paddlePosition -= 10; // Adjust this value as needed
+            } else if (event.key === 'ArrowDown') {
+                // Move paddle down (add to position)
+                paddlePosition += 10; // Adjust this value as needed
+            }
+            
+            // Send the new paddle position to the server
+            if (playerId !== null) {
+                websocket.send(JSON.stringify({ type: 'paddle_move', player_id: playerId, position: paddlePosition }));
+            }
+        });
+
+
     </script>
 </body>
 

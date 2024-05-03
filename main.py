@@ -51,6 +51,11 @@ async def websocket_endpoint(websocket: WebSocket):
                 await websocket.send_text(json.dumps({"type": "player_id", "player_id": player_id}))
             elif message["type"] == "paddle_move":
                 player_id = message["player_id"]
+                if message["position"] > GAME_HEIGHT - PADDLE_HEIGHT:
+                    message["position"] = GAME_HEIGHT - PADDLE_HEIGHT
+                elif message["position"] < 0:
+                    message["position"] = 0
+                message["position"] = round(message["position"])
                 player_positions[player_id] = message["position"]
 
     except:
