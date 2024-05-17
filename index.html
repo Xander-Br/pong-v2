@@ -8,8 +8,29 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.11/dist/tailwind.min.css" rel="stylesheet">
     <style>
         canvas {
-            border: 1px solid black; /* Keeping the border style as before */
+            border: 2px solid black;
             background-color: #EEEEEE;
+        }
+
+        body {
+            background: linear-gradient(45deg, #1e3c72, #2a5298);
+        }
+
+        .wind-toggle-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 10px 20px;
+            background-color: #ff6f61;
+            color: white;
+            font-size: 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .wind-toggle-btn:hover {
+            background-color: #ff4c3b;
         }
     </style>
 </head>
@@ -35,31 +56,48 @@
     <div class="flex justify-center">
         <canvas id="gameCanvas" width="800" height="600" class="border-2 border-white"></canvas>
     </div>
+    <button class="wind-toggle-btn" id="windToggleBtn" onclick="toggleWind()">Wind Off</button>
 
     <script>
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
-
-
-        const websocket = new WebSocket(`ws://localhost:8000/ws`);
-
-
+        let websocket;
         let playerId = null;
+        let windEffect = false;
 
-        websocket.onmessage = function (event) {
-            const message = JSON.parse(event.data);
+        function setupWebSocket() {
+            websocket = new WebSocket(`ws://localhost:8000/ws`);
 
-            if (message.type === 'player_id') {
-                playerId = message.player_id;
-            } else if (message.type === 'game_state') {
-                updateGame(message);
-            }
-        };
+            websocket.onmessage = function (event) {
+                const message = JSON.parse(event.data);
+
+                if (message.type === 'player_id') {
+                    playerId = message.player_id;
+                } else if (message.type === 'game_state') {
+                    updateGame(message);
+                }
+            };
+
+            websocket.onclose = function () {
+                console.log('WebSocket connection closed. Reconnecting...');
+                setTimeout(setupWebSocket, 1000);  // Attempt to reconnect every second
+            };
+        }
+
+        setupWebSocket();
+
+        function toggleWind() {
+            windEffect = !windEffect;
+            document.getElementById('windToggleBtn').textContent = windEffect ? 'Wind On' : 'Wind Off';
+            websocket.send(JSON.stringify({ type: 'toggle_wind', windEffect: windEffect }));
+        }
 
         function restartGame() {
             websocket.send(JSON.stringify({ type: 'restart' }));
+            playerId = null;
+            document.getElementById('team1').innerHTML = '';
+            document.getElementById('team2').innerHTML = '';
         }
-
 
         function joinGame() {
             const username = document.getElementById('username').value;
@@ -70,18 +108,46 @@
             websocket.send(JSON.stringify({ type: 'join', username: username }));
         }
 
+        function drawFootballBall(x, y, radius) {
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#000000';
+            const hexagonSide = radius / 3;
+
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(x + hexagonSide * Math.cos(angle), y + hexagonSide * Math.sin(angle));
+                ctx.lineTo(x + hexagonSide * Math.cos(angle + Math.PI / 3), y + hexagonSide * Math.sin(angle + Math.PI / 3));
+                ctx.lineTo(x, y);
+                ctx.fill();
+            }
+        }
+
         function updateGame(gameState) {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Draw background gradient
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            gradient.addColorStop(0, '#ff9a9e');
+            gradient.addColorStop(1, '#fad0c4');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
             // Draw paddles
+            ctx.fillStyle = '#3498db';
             for (const [playerId, playerPos] of Object.entries(gameState.player_positions)) {
                 const paddleX = playerId % 2 === 1 ? 0 : canvas.width - 10;
                 ctx.fillRect(paddleX, playerPos, 10, 100);
             }
 
-            // Draw ball
+            // Draw ball as a football (soccer ball)
             const [ballX, ballY] = gameState.ball_position;
-            ctx.fillRect(ballX, ballY, 10, 10);
+            drawFootballBall(ballX + 5, ballY + 5, 10);
 
             // Update player lists
             const team1List = document.getElementById('team1');
@@ -91,7 +157,7 @@
 
             for (const [playerId, playerPos] of Object.entries(gameState.player_positions)) {
                 const listItem = document.createElement('li');
-                listItem.textContent = `Player ${playerId}`;
+                listItem.textContent = `Player ${playerId} (${gameState.player_usernames[playerId]})`;
 
                 if (playerId % 2 === 1) {
                     team1List.appendChild(listItem);

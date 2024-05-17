@@ -1,6 +1,7 @@
 import json
 import threading
 import time
+import random
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
 
@@ -21,6 +22,10 @@ ball_x = GAME_WIDTH // 2
 ball_y = GAME_HEIGHT // 2
 ball_dx = BALL_SPEED
 ball_dy = BALL_SPEED
+wind_effect = False
+wind_direction = 1
+wind_speed = 1.5  # Slightly increased wind speed
+wind_active = False
 
 # WebSocket connections
 connections = []
@@ -28,6 +33,7 @@ connections = []
 # WebSocket endpoint
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    global wind_effect  # Declare global variables at the start of the function
     await websocket.accept()
     connections.append(websocket)
 
@@ -54,11 +60,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 player_positions[player_id] = message["position"]
             elif message["type"] == "restart":
                 # Restart game logic
-                global ball_x, ball_y, ball_dx, ball_dy
+                global ball_x, ball_y, ball_dx, ball_dy, wind_effect, wind_direction, wind_active
                 ball_x = GAME_WIDTH // 2
                 ball_y = GAME_HEIGHT // 2
                 ball_dx = BALL_SPEED
                 ball_dy = BALL_SPEED
+                wind_effect = False
+                wind_active = False
                 player_positions.clear()
                 player_usernames.clear()
                 
@@ -66,7 +74,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 for connection in connections:
                     await connection.send_text(reset_message)
                 
-                await broadcast_game_state()  
+                await broadcast_game_state()
+            elif message["type"] == "toggle_wind":
+                wind_effect = message["windEffect"]
 
     except:
         connections.remove(websocket)
@@ -78,6 +88,7 @@ async def broadcast_game_state():
             "player_positions": player_positions,
             "player_usernames": player_usernames,
             "ball_position": [ball_x, ball_y],
+            "windEffect": wind_effect,
         }
         for connection in connections:
             await connection.send_text(json.dumps(game_state))
@@ -91,12 +102,20 @@ async def get():
     return HTMLResponse(content)
 
 def game_loop():
-    global ball_x, ball_y, ball_dx, ball_dy
+    global ball_x, ball_y, ball_dx, ball_dy, wind_effect, wind_speed, wind_active, wind_direction
 
     while True:
         # Update ball position
         ball_x += ball_dx
         ball_y += ball_dy
+
+        # Apply wind effect randomly
+        if wind_effect and random.random() < 0.2:  # 20% chance to activate wind each frame
+            wind_active = not wind_active
+            wind_direction = random.choice([-1, 1])  # Randomly choose wind direction
+
+        if wind_active:
+            ball_dx += wind_speed * wind_direction
 
         # Check for collision with walls
         if ball_y <= 0 or ball_y >= GAME_HEIGHT - BALL_SIZE:
@@ -119,6 +138,7 @@ def game_loop():
         if ball_x <= 0 or ball_x >= GAME_WIDTH - BALL_SIZE:
             ball_x = GAME_WIDTH // 2
             ball_y = GAME_HEIGHT // 2
+            ball_dx = BALL_SPEED if ball_dx > 0 else -BALL_SPEED
 
         time.sleep(0.016)  # 60 FPS
 
