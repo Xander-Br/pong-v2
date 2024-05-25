@@ -36,7 +36,7 @@ Ce projet est une implémentation du jeu Pong utilisant Flask et Flask-SocketIO 
 1. Lancez l'application Flask :
 
     ```bash
-    python app.py
+    python main.py
     ```
 
 2. Ouvrez un navigateur et allez à l'adresse suivante :
@@ -44,6 +44,7 @@ Ce projet est une implémentation du jeu Pong utilisant Flask et Flask-SocketIO 
     ```
     http://127.0.0.1:5000
     ```
+
 
 ## Fonctionnalités
 
@@ -98,19 +99,62 @@ Les threads permettent l'exécution simultanée de plusieurs opérations au sein
     - **Bots** : Les bots suivent la balle de manière simple. Chaque bot vérifie la position de la balle et ajuste sa position en conséquence toutes les 1/30e de seconde.
     - **Communication en Temps Réel** : Flask-SocketIO est utilisé pour émettre les mises à jour du jeu aux clients en temps réel.
 
-### Contributions
+### Problèmes Rencontrés
 
-Les contributions sont les bienvenues ! Veuillez ouvrir une issue pour discuter de ce que vous aimeriez changer.
+### 2. Gestion des Threads
 
-## Auteurs
+**Problème :**
+Lors de l'ajout de bots, il était nécessaire de les exécuter dans des threads séparés pour qu'ils puissent fonctionner de manière indépendante sans bloquer le thread principal. Cependant, gérer correctement l'arrêt des threads des bots et la boucle de jeu principale a nécessité une gestion minutieuse des événements d'arrêt (`stop_event`).
 
-- Breuil Alexandre - Développeur principal
-- Flavio Bertollini - Développeur principal
-- Reza - Développeur principal
-- David Aeschlimann - Développeur principal
+**Solution :**
+Nous avons utilisé des objets `Event` pour contrôler le démarrage et l'arrêt des threads de manière coordonnée. Chaque bot est exécuté dans un thread séparé et vérifie régulièrement l'état de l'événement `stop_event`. Lors de l'arrêt du jeu, tous les threads des bots sont correctement arrêtés en rejoignant (`join`) les threads.
 
+### 3. Commandes Spécifiques à un Utilisateur
 
+**Problème :**
+Certaines commandes, telles que `!start`, `!addBot`, `!removeBot` et `!reset`, devaient être restreintes à un utilisateur spécifique (Xander).
 
-## Licence
+**Solution :**
+Nous avons implémenté une vérification simple du nom d'utilisateur dans la fonction de gestion des messages. Si le nom d'utilisateur de l'émetteur du message est "Xander", les commandes sont exécutées ; sinon, elles sont ignorées.
 
-Ce projet est sous licence MIT. Voir le fichier `LICENSE` pour plus de détails.
+### 4. Différenciation des Paddles
+
+**Problème :**
+Il était nécessaire de différencier visuellement le paddle du joueur contrôlé par l'utilisateur des autres paddles (y compris les bots et les autres joueurs).
+
+**Solution :**
+Dans la fonction de dessin du jeu (`drawGame`), nous avons ajouté une logique pour colorer le paddle du joueur contrôlé par l'utilisateur en bleu clair (`#00f`) et tous les autres paddles en blanc (`#fff`).
+
+### 5. Réinitialisation du Jeu
+
+**Problème :**
+Il était nécessaire de fournir une commande pour réinitialiser le jeu, mettant l'état du jeu à 'idle' et réinitialisant toutes les variables du jeu.
+
+**Solution :**
+Nous avons ajouté une commande `!reset` qui arrête la boucle de jeu, réinitialise les scores des équipes et remet l'état du jeu à 'idle'. Cette commande est également restreinte à l'utilisateur "Xander".
+
+### 6. Gestion des Bots avec des Noms Uniques
+
+**Problème :**
+Il fallait s'assurer que chaque bot ajouté ait un nom unique (par exemple, Bot 1, Bot 2, etc.) et permettre la suppression de bots de manière spécifique ou en masse.
+
+**Solution :**
+Nous avons maintenu un compteur global de bots pour générer des noms uniques pour chaque bot ajouté. Les commandes `!removeBot` et `!removeBot all` permettent de supprimer un bot spécifique (le plus récemment ajouté) ou tous les bots, respectivement.
+
+### 7. Utilisation du Contexte de l'Application pour les Ticks
+
+**Problème :**
+Les ticks du jeu (mises à jour de l'état du jeu envoyées aux clients) n'étaient pas propagés correctement car ils étaient exécutés hors du contexte de l'application Flask.
+
+**Solution :**
+Pour résoudre ce problème, nous avons utilisé `app.app_context()` pour nous assurer que les ticks sont exécutés dans le contexte de l'application Flask. Cela garantit que toutes les variables et configurations de l'application sont disponibles lors de l'émission des mises à jour du jeu.
+
+Voici un extrait de code montrant comment le contexte de l'application a été utilisé pour les ticks :
+
+```python
+def broadcast_tick(self):
+    with app.app_context():
+        socketio.emit('game_tick', {
+            'ball': {'x': ball.x, 'y': ball.y},
+            'paddles': {player.id: {'paddle_y': player.paddle_y, 'team': player.team, 'is_bot': player.is_bot} for player in players.values()}
+        }, to=None)
