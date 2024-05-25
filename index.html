@@ -70,7 +70,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
-            const socket = io.connect('https://' + document.domain + ':' + location.port);
+            const socket = io.connect('http://' + document.domain + ':' + location.port);
             let username;
             let playerId;
 
