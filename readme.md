@@ -104,7 +104,12 @@ Les contributions sont les bienvenues ! Veuillez ouvrir une issue pour discuter 
 
 ## Auteurs
 
-- Votre Nom - Développeur principal
+- Breuil Alexandre - Développeur principal
+- Flavio Bertollini - Développeur principal
+- Reza - Développeur principal
+- David Aeschlimann - Développeur principal
+
+
 
 ## Licence
 
